@@ -1,40 +1,46 @@
 const express = require("express");
+const cors = require("cors");
+// const openai = require("openai");
+const { Configuration, OpenAIApi } = require("openai");
 const bodyParser = require("body-parser");
-const axios = require("axios");
-
+require("dotenv").config();
 const app = express();
-app.use(bodyParser.json());
 
-const openai = require("openai");
-openai.api_key = "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";
-
-app.post("/get-answer", async (req, res) => {
-  const question = req.body.question;
-  const answer = await processQuestion(question);
-  res.send({ answer });
+const configuration = new Configuration({
+  apiKey: process.env.API_KEY,
 });
 
-async function processQuestion(question) {
-  const model_engine = "text-davinci-002";
-  const prompt = `${question}\n`;
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
-  const completions = await openai.completions.create({
-    engine: model_engine,
-    prompt: prompt,
+app.use(bodyParser.json());
+
+async function getAiResponse(topic) {
+  const openai = new OpenAIApi(configuration);
+  const completion = await openai.createCompletion({
+    model: "text-davinci-003",
+    prompt: topic,
     max_tokens: 1024,
     n: 1,
     stop: null,
-    temperature: 0.5,
+    temperature: 0.7,
   });
-
-  return completions.choices[0].text;
+  console.log(completion.data.choices[0].text);
+  const answer = completion.data.choices[0].text;
+  return answer;
 }
+// getAiResponse("write this code as a function so i can host it on localhost");
 
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static("client/build"));
-}
+app.post("/get-answer", async (req, res) => {
+  const { question } = req.body;
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`server running on port ${PORT}`);
+  const result = await getAiResponse(question);
+  return res.json({ result });
+});
+
+app.listen(5000, () => {
+  console.log("API server listening on port 5000");
 });
